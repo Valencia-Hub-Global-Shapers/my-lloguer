@@ -1,0 +1,265 @@
+/**
+ * Hand-maintained types matching supabase/migrations. When the CLI is
+ * available, regenerate with:
+ *   npx supabase gen types typescript --local > src/lib/types/database.types.ts
+ */
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
+export type ListingType = "room" | "full_flat";
+export type ListingStatus = "draft" | "pending" | "approved" | "rejected" | "expired" | "deleted";
+export type GenderPref = "any" | "female" | "male" | "non_binary";
+export type RoomType = "single" | "double" | "shared";
+export type TenantPref = "any" | "students" | "workers";
+export type ModerationAction =
+  | "submitted"
+  | "approved"
+  | "rejected"
+  | "edited"
+  | "deactivated"
+  | "deleted"
+  | "republished";
+
+export type ProfileRow = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  is_admin: boolean;
+  role_hint: "publisher" | "seeker" | null;
+  created_at: string;
+}
+export type ProfileInsert = {
+  id: string;
+  email?: string | null;
+  full_name?: string | null;
+  avatar_url?: string | null;
+  is_admin?: boolean;
+  role_hint?: "publisher" | "seeker" | null;
+  created_at?: string;
+}
+export type ProfileUpdate = Partial<Omit<ProfileInsert, "id">>;
+
+export type ListingRow = {
+  id: string;
+  owner_id: string;
+  type: ListingType;
+  status: ListingStatus;
+  price: number;
+  neighborhood: string | null;
+  municipality: string;
+  /** Exact location (GeoJSON via PostgREST); never select it in public queries. */
+  location: unknown;
+  public_lat: number;
+  public_lng: number;
+  flatmates: number | null;
+  preferred_gender: GenderPref;
+  description: string;
+  available_from: string | null;
+  bills_included: boolean;
+  deposit: number | null;
+  room_type: RoomType | null;
+  pets: boolean;
+  smokers: boolean;
+  tenant_pref: TenantPref;
+  contact_external: string | null;
+  contact_whatsapp: string | null;
+  bathrooms: number | null;
+  bedrooms: number | null;
+  views_count: number;
+  photos: string[];
+  publisher_kind: "private" | "agency";
+  agency_label: string | null;
+  expires_at: string | null;
+  approved_at: string | null;
+  published_version: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+export type ListingInsert = {
+  id?: string;
+  owner_id: string;
+  type: ListingType;
+  status?: ListingStatus;
+  price: number;
+  neighborhood?: string | null;
+  municipality?: string;
+  location: string; // SRID=4326;POINT(lng lat)
+  public_lat?: number;
+  public_lng?: number;
+  flatmates?: number | null;
+  preferred_gender?: GenderPref;
+  description?: string;
+  available_from?: string | null;
+  bills_included?: boolean;
+  deposit?: number | null;
+  room_type?: RoomType | null;
+  pets?: boolean;
+  smokers?: boolean;
+  tenant_pref?: TenantPref;
+  contact_external?: string | null;
+  contact_whatsapp?: string | null;
+  bathrooms?: number | null;
+  bedrooms?: number | null;
+  photos?: string[];
+  publisher_kind?: "private" | "agency";
+  agency_label?: string | null;
+}
+export type ListingUpdate = Partial<
+  Omit<ListingInsert, "owner_id"> & {
+    status: ListingStatus;
+    approved_at: string | null;
+    expires_at: string | null;
+    deleted_at: string | null;
+  }
+>;
+
+export type ModerationEventRow = {
+  id: string;
+  listing_id: string;
+  actor_id: string;
+  action: ModerationAction;
+  comment: string | null;
+  created_at: string;
+}
+export type ModerationEventInsert = {
+  listing_id: string;
+  actor_id: string;
+  action: ModerationAction;
+  comment?: string | null;
+}
+
+export type ListingViewRow = {
+  id: number;
+  listing_id: string;
+  viewer_hash: string;
+  created_at: string;
+}
+
+export type NeighborhoodRow = {
+  id: number;
+  name_es: string;
+  name_ca: string;
+  name_en: string;
+  slug: string;
+  center: unknown;
+  municipality: string;
+  lat: number;
+  lng: number;
+}
+
+export type PublicListingRow = {
+  id: string;
+  type: ListingType;
+  status: ListingStatus;
+  price: number;
+  neighborhood: string | null;
+  municipality: string;
+  public_lat: number;
+  public_lng: number;
+  flatmates: number | null;
+  preferred_gender: GenderPref;
+  description: string;
+  available_from: string | null;
+  bills_included: boolean;
+  deposit: number | null;
+  room_type: RoomType | null;
+  pets: boolean;
+  smokers: boolean;
+  tenant_pref: TenantPref;
+  contact_external: string | null;
+  contact_whatsapp: string | null;
+  bathrooms: number | null;
+  bedrooms: number | null;
+  views_count: number;
+  photos: string[];
+  publisher_kind: "private" | "agency";
+  agency_label: string | null;
+  owner_id: string;
+  published_version: number;
+  created_at: string;
+}
+
+export type PublicProfileRow = {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
+export type Database = {
+  public: {
+    Tables: {
+      profiles: {
+        Row: ProfileRow;
+        Insert: ProfileInsert;
+        Update: ProfileUpdate;
+        Relationships: [];
+      };
+      listings: {
+        Row: ListingRow;
+        Insert: ListingInsert;
+        Update: ListingUpdate;
+        Relationships: [];
+      };
+      moderation_events: {
+        Row: ModerationEventRow;
+        Insert: ModerationEventInsert;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      listing_views: {
+        Row: ListingViewRow;
+        Insert: { listing_id: string; viewer_hash: string };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      neighborhoods: {
+        Row: NeighborhoodRow;
+        Insert: {
+          name_es: string;
+          name_ca: string;
+          name_en: string;
+          slug: string;
+          center: string;
+          municipality: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+    };
+    Views: {
+      public_listings: {
+        Row: PublicListingRow;
+        Relationships: [];
+      };
+      public_profiles: {
+        Row: PublicProfileRow;
+        Relationships: [];
+      };
+    };
+    Functions: {
+      increment_listing_view: {
+        Args: { p_listing_id: string; p_viewer_hash: string };
+        Returns: undefined;
+      };
+      expire_listings: { Args: Record<string, never>; Returns: number };
+      is_admin: { Args: Record<string, never>; Returns: boolean };
+    };
+    Enums: {
+      listing_type: ListingType;
+      listing_status: ListingStatus;
+      gender_pref: GenderPref;
+      room_type: RoomType;
+      tenant_pref: TenantPref;
+      moderation_action: ModerationAction;
+    };
+    CompositeTypes: Record<string, never>;
+  };
+}
+
+export type Profile = ProfileRow;
+export type Listing = ListingRow;
+export type PublicListing = PublicListingRow;
+export type PublicProfile = PublicProfileRow;
+export type ModerationEvent = ModerationEventRow;
+export type Neighborhood = NeighborhoodRow;

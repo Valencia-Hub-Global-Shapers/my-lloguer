@@ -1,0 +1,98 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { err, ok, type Result } from "@/lib/result";
+import { moderationDecisionSchema, rejectDecisionSchema } from "../schemas";
+
+async function requireAdminUser() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { supabase, user: null, admin: false };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .single();
+
+  return { supabase, user, admin: profile?.is_admin === true };
+}
+
+export async function approveListing(
+  listingId: string,
+  comment?: string,
+): Promise<Result<null>> {
+  const { supabase, user, admin } = await requireAdminUser();
+  if (!user || !admin) return err("errors.unauthorized");
+  if (!(await checkRateLimit("edit", user.id))) return err("errors.rateLimited");
+
+  const parsed = moderationDecisionSchema.safeParse({ listingId, comment });
+  if (!parsed.success) return err("errors.validation");
+
+  const now = new Date();
+  const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  const { error } = await supabase
+    .from("listings")
+    .update({
+      status: "approved",
+      approved_at: now.toISOString(),
+      expires_at: expires.toISOString(),
+      deleted_at: null,
+    })
+    .eq("id", listingId);
+
+  if (error) {
+    console.error("approveListing failed:", error);
+    return err("errors.generic");
+  }
+
+  await supabase.from("moderation_events").insert({
+    listing_id: listingId,
+    actor_id: user.id,
+    action: "approved",
+    comment: comment ?? null,
+  });
+
+  revalidatePath("/[locale]/admin/moderation", "page");
+  revalidatePath("/[locale]/admin/listings", "page");
+  revalidatePath("/[locale]", "page");
+  return ok(null);
+}
+
+export async function rejectListing(
+  listingId: string,
+  comment: string,
+): Promise<Result<null>> {
+  const { supabase, user, admin } = await requireAdminUser();
+  if (!user || !admin) return err("errors.unauthorized");
+  if (!(await checkRateLimit("edit", user.id))) return err("errors.rateLimited");
+
+  const parsed = rejectDecisionSchema.safeParse({ listingId, comment });
+  if (!parsed.success) return err("errors.validation");
+
+  const { error } = await supabase
+    .from("listings")
+    .update({ status: "rejected" })
+    .eq("id", listingId);
+
+  if (error) {
+    console.error("rejectListing failed:", error);
+    return err("errors.generic");
+  }
+
+  await supabase.from("moderation_events").insert({
+    listing_id: listingId,
+    actor_id: user.id,
+    action: "rejected",
+    comment,
+  });
+
+  revalidatePath("/[locale]/admin/moderation", "page");
+  revalidatePath("/[locale]/admin/listings", "page");
+  return ok(null);
+}
